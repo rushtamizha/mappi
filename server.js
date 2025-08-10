@@ -21,7 +21,8 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 console.log("KEY CHECK:", process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET);
 
 const app = express();
-app.use(cors());
+import cors from "cors";
+app.use(cors({ origin: "https://mappi.onrender.com" }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
