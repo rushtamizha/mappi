@@ -176,18 +176,21 @@ export const getUserStats = async (req, res) => {
 export const getLinksByUsername = async (req, res) => {
   try {
     const { username } = req.params;
-    const user = await User.findOne({ username });
+    const user = await User.findOne({
+      username: { $regex: `^${username}$`, $options: "i" }
+    });
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const links = await Link.find({ userId: user._id, visible: true  }).sort({ order: 1 });
-    res.json( {links , user});
+    const links = await Link.find({ userId: user._id, visible: true }).sort({ order: 1 });
+    res.json({ links, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 export const updateLinkOrder = async (req, res) => {
