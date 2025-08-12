@@ -38,7 +38,10 @@ export const getAllForms = async (req, res) => {
       return res.status(400).json({ message: "Username is required" });
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({
+      username: new RegExp(`^${username}$`, "i"), // case-insensitive match
+    });
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
