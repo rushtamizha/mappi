@@ -79,8 +79,12 @@ export const getMySocialLinks = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
     const user = await SocialLink.findOne({userId});
+    if (!user) {
+      return res.status(200).json([]);
+    }
     res.status(200).json(user.socialLinks || []);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
