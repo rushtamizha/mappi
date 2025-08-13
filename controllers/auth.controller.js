@@ -72,75 +72,6 @@ export const sendRegisterOtp = async (req, res) => {
 };
 
 
-export const register = async (req, res) => {
-  try {
-    const { username, gmail, password, referredBy: referralCodeInput, otp } = req.body;
-
-    // 1. Validate OTP
-    const otpRecord = await Otp.findOne({ gmail });
-    if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt < new Date()) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
-    }
-
-    // 2. Clean username (remove spaces, make consistent case)
-    const cleanedUsername = username.replace(/\s+/g, '').trim();
-
-    // 3. Check if username already exists (case-insensitive)
-    const exists = await User.exists({ username: { $regex: `^${cleanedUsername}$`, $options: 'i' } });
-    if (exists) {
-      return res.status(409).json({ success: false, message: 'Username already exists' });
-    }
-
-    // 4. Hash password
-    const hash = await bcrypt.hash(password, 10);
-
-    // 5. Validate referral code
-    let referredBy = null;
-    if (referralCodeInput) {
-      const referrer = await User.findOne({
-        referralCode: { $regex: `^${referralCodeInput}$`, $options: 'i' }
-      });
-      if (referrer) {
-        referredBy = referrer._id;
-      } else {
-        return res.status(400).json({ success: false, message: 'Invalid referral code' });
-      }
-    }
-
-    // 6. Create referral code (same as cleaned username)
-    const referralCode = cleanedUsername;
-
-    // 7. Save user
-    const user = new User({
-      username: cleanedUsername,
-      gmail,
-      password: hash,
-      referralCode,
-      referredBy
-    });
-    await user.save();
-
-    // 8. Create referral record if applicable
-    if (referredBy) {
-      await Referral.create({
-        referrer: referredBy,
-        referredUser: user._id,
-        commissionEarned: 0
-      });
-    }
-
-    // 9. Delete OTP record
-    await Otp.deleteOne({ gmail });
-
-    return res.status(200).json({ success: true, message: 'Registered successfully' });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Registration Failed" });
-  }
-};
-
-
 export const registerGoogle = async (req, res) => {
   try {
     const { username, gmail, referredBy: referralCodeInput, googleId } = req.body;
@@ -148,15 +79,14 @@ export const registerGoogle = async (req, res) => {
     if (!username || !gmail || !googleId) {
       return res.status(400).json({ msg: 'Username, Gmail, and Google ID are required' });
     }
-    const cleanedUsername = username.trim().replace(/\s+/g, '');
 
-    const exists = await User.findOne({ $or: [{ gmail }, { username: { $regex: `^${cleanedUsername}$`, $options: 'i' } }]})
+    const exists = await User.findOne({ $or: [{ gmail }, { username }] });
     if (exists) return res.status(400).json({ msg: 'User already exists' });
 
     let referredBy = null;
 
    if (referralCodeInput) {
-      const referrer = await User.findOne({ referralCode: { $regex: `^${referralCodeInput}$`, $options: 'i' } });
+      const referrer = await User.findOne({ referralCode: referralCodeInput });
       if (referrer) {
         referredBy = referrer._id;
       } else {
@@ -165,7 +95,7 @@ export const registerGoogle = async (req, res) => {
     }
 
 
-  const spaceName = username.replace(" ","")
+  const spaceName = username.replace(" ","").toLowerCase()
    const referralCode = spaceName;
     const user = new User({ username:spaceName, gmail, referralCode, referredBy });
     await user.save();
@@ -178,6 +108,56 @@ export const registerGoogle = async (req, res) => {
   } catch (err) {
     console.error('Google Registration Error:', err.message);
     res.status(500).json({ msg: 'Internal server error' });
+  }
+};
+
+export const register = async (req, res) => {
+  try {
+    const { username, gmail, password, referredBy: referralCodeInput, otp } = req.body;
+
+    // 1. Validate OTP
+    const otpRecord = await Otp.findOne({ gmail });
+    if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt < new Date()) {
+      return res.status(400).json({success:false, message: 'Invalid or expired OTP' });
+    }
+
+    // 2. Check if username already exists
+    const exists = await User.exists({ username: username.trim() });
+    if (exists) {
+      return res.status(409).json({success:false, message: 'Username already exists' });
+    }
+
+    // 3. Hash password
+    const hash = await bcrypt.hash(password, 10);
+
+    // 4. Validate referral code
+      let referredBy = null;
+
+   if (referralCodeInput) {
+      const referrer = await User.findOne({ referralCode: referralCodeInput });
+      if (referrer) {
+        referredBy = referrer._id;
+      } else {
+        return res.status(400).json({success:false, message: 'Invalid referral code' });
+      }
+    }
+
+
+  const spaceName = username.replace(" ","").toLowerCase()
+   const referralCode = spaceName;
+    const user = new User({ username:spaceName, gmail, password: hash, referralCode, referredBy });
+    await user.save();
+
+    if (referredBy) {
+      await Referral.create({ referrer: referredBy, referredUser: user._id, commissionEarned: 0 });
+    }
+    // 7. Delete OTP record
+    await Otp.deleteOne({ gmail });
+
+    return res.status(200).json({success:true, message: 'Registered successfully' });
+
+  } catch (err) {
+    res.status(500).json({success:false, message: "Registration Failed" });
   }
 };
 
