@@ -46,13 +46,20 @@ export const getAllForms = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Only Pro or Premium can access forms
+    if (user.plan !== 'pro' && user.plan !== 'premium') {
+      return res.status(403).json({ message: "Forms feature is available only for Pro or Premium plans" });
+    }
+
     const allForms = await Form.find({ userId: user._id });
     return res.status(200).json(allForms);
+
   } catch (error) {
     console.error("Error fetching forms:", error);
     res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
+
 
 
 
