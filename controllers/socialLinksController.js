@@ -1,5 +1,6 @@
 import {SocialLink} from '../models/SocialLink.js';
 import { v4 as uuidv4 } from 'uuid';
+import { User } from '../models/User.js';
 // Add or Update a social link
 export const upsertSocialLink = async (req, res) => {
   try {
@@ -77,14 +78,28 @@ export const deleteSocialLink = async (req, res) => {
 // Get all social links
 export const getMySocialLinks = async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id;
-    const user = await SocialLink.findOne({userId});
+    const { username } = req.params;
+
+    if (!username) {
+      return res.status(400).json({ message: "Username is required" });
+    }
+
+    // Find user by username
+    const user = await User.findOne({ username });
     if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Find social links by userId
+    const socialLinksDoc = await SocialLink.findOne({ userId: user._id });
+    if (!socialLinksDoc) {
       return res.status(200).json([]);
     }
-    res.status(200).json(user.socialLinks || []);
+
+    res.status(200).json(socialLinksDoc.socialLinks || []);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
