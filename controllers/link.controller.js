@@ -176,6 +176,7 @@ export const getUserStats = async (req, res) => {
 export const getLinksByUsername = async (req, res) => {
   try {
     const { username } = req.params;
+
     const user = await User.findOne({
       username: { $regex: `^${username}$`, $options: "i" }
     });
@@ -184,12 +185,28 @@ export const getLinksByUsername = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const links = await Link.find({ userId: user._id, visible: true }).sort({ order: 1 });
+    // Set link limit based on subscription plan
+    let linkLimit = 0;
+    if (user.plan === 'free') {
+      linkLimit = 5;
+    } else if (user.plan === 'pro') {
+      linkLimit = 25;
+    } else if (user.plan === 'premium') {
+      linkLimit = 0; // 0 means no limit
+    }
+
+    let query = Link.find({ userId: user._id, visible: true }).sort({ order: 1 });
+    if (linkLimit > 0) {
+      query = query.limit(linkLimit);
+    }
+
+    const links = await query;
     res.json({ links, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 
