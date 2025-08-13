@@ -15,7 +15,10 @@ import form from "./routes/form.js"
 import formResponse from "./routes/formResponse.js"
 import paymentRoutes from './routes/payment.js';
 import socialLinksRoutes from './routes/socialLinks.js';
+
 import cron from 'node-cron';
+import { User } from "../backend/models/User.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 console.log("KEY CHECK:", process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET);
@@ -43,20 +46,24 @@ mongoose.connect(process.env.MONGO_URI, {
   useUnifiedTopology: true
 }).then(() => {
   console.log("MongoDB connected");
-  cron.schedule('0 0 * * *', async () => { // Every midnight
-      const expiredUsers = await User.find({
-        plan: { $ne: 'free' },
-        planExpiry: { $lt: new Date() }
-      });
 
-      for (const user of expiredUsers) {
-        user.plan = 'free';
-        user.planExpiry = null;
-        await user.save();
-      }
-      console.log(`Reverted ${expiredUsers.length} users to free plan`);
+  // Cron Job - reset expired plans
+  cron.schedule('0 0 * * *', async () => {
+    const expiredUsers = await User.find({
+      plan: { $ne: 'free' },
+      planExpiry: { $lt: new Date() }
     });
+
+    for (const user of expiredUsers) {
+      user.plan = 'free';
+      user.planExpiry = null;
+      await user.save();
+    }
+
+    console.log(`Reverted ${expiredUsers.length} users to free plan`);
+  });
+
   app.listen(process.env.PORT || 5002, () => {
-    console.log("Server running on port 5002");
+    console.log(`Server running on port ${process.env.PORT || 5002}`);
   });
 }).catch(err => console.error("MongoDB error:", err));
