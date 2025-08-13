@@ -5,40 +5,51 @@ export const addLink = async (req, res) => {
   try {
     const { title, url, logo, description } = req.body;
     const userId = req.user._id;
-   
-    const lastLink = await Link.findOne({ userId : userId }).sort('-order');
-    const nextOrder = lastLink ? lastLink.order + 1 : 1;
-  
+
     if (!title || !url) {
       return res.status(400).json({ error: "Title and URL are required" });
     }
 
-    let logoUrl = logo;
-
-   /* if (req.file) {
-      logoUrl = req.file.path;
+    // Get user and check plan
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-  if (!logoUrl) {
- return res.status(400).json({ error: "Logo image is required" });
-  }
-*/
+    // Count current links
+    const linkCount = await Link.countDocuments({ userId });
+
+    // Apply plan limits
+    if (user.plan === 'free' && linkCount >= 5) {
+      return res.status(403).json({ error: "Free plan allows only 5 links. Upgrade to Pro or Premium." });
+    }
+    if (user.plan === 'pro' && linkCount >= 25) {
+      return res.status(403).json({ error: "Pro plan allows only 25 links. Upgrade to Premium for unlimited." });
+    }
+    // Premium → no limit
+
+    // Determine next order value
+    const lastLink = await Link.findOne({ userId }).sort('-order');
+    const nextOrder = lastLink ? lastLink.order + 1 : 1;
+
     const newLink = new Link({
       title,
       url,
-      logo: logoUrl,
+      logo: logo || null,
       description,
       userId,
-      order:nextOrder,
+      order: nextOrder
     });
 
     await newLink.save();
     res.status(201).json(newLink);
+
   } catch (err) {
     console.error("Add link failed:", err.message, err.stack);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 
 // Update a link
