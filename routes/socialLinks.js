@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-router.get('/', getMySocialLinks);
+router.get('/:username', getMySocialLinks);
 router.post('/', upsertSocialLink);
 router.delete('/:id', deleteSocialLink);
 
