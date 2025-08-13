@@ -8,10 +8,8 @@ import {authMiddleware} from '../middlewares/auth.js';
 
 const router = express.Router();
 
-router.use(authMiddleware);
-
 router.get('/:username', getMySocialLinks);
-router.post('/', upsertSocialLink);
-router.delete('/:id', deleteSocialLink);
+router.post('/',authMiddleware, upsertSocialLink);
+router.delete('/:id',authMiddleware, deleteSocialLink);
 
 export default router;
