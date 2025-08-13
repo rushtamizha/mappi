@@ -85,6 +85,8 @@ export const verifyPayment = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
 export const purchasePlan = async (req, res) => {
   try {
     const { plan } = req.body;
@@ -103,7 +105,8 @@ export const purchasePlan = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (user.plan === plan) {
+    // Check if user already has this plan and not expired
+    if (user.plan === plan && (!user.planExpiry || user.planExpiry > new Date())) {
       return res.status(409).json({ error: `You already have the ${plan} plan` });
     }
 
@@ -114,29 +117,36 @@ export const purchasePlan = async (req, res) => {
     let referrer = null;
     let commission = 0;
 
-
-    // Deduct wallet only if not free
+    // Deduct wallet and give commission only for paid plans
     if (amount > 0) {
       user.wallet -= amount;
-      const referrer = await User.findById(user.referredBy);
-      console.log("refer : " + referrer)
-       if (referrer) {
-       const commission = amount * 0.10;
-       referrer.wallet += commission;
-       await referrer.save();
-  }
+
+      if (user.referredBy) {
+        referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          commission = amount * 0.10;
+          referrer.wallet += commission;
+          await referrer.save();
+        }
+      }
+
+      // Set plan expiry date = now + 30 days
+      user.planExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    } else {
+      // Free plan → remove expiry date
+      user.planExpiry = null;
     }
 
     await Transaction.create({
-  userId: user._id,
-  type: 'plan',
-  plan,
-  amount,
-  status: 'success',
-  referrer: referrer ? referrer._id : null,
-  referrerCommission: commission
-});
-
+      userId: user._id,
+      type: 'plan',
+      plan,
+      amount,
+      status: 'success',
+      referrer: referrer ? referrer._id : null,
+      referrerCommission: commission
+    });
 
     user.plan = plan;
     await user.save();
@@ -144,10 +154,13 @@ export const purchasePlan = async (req, res) => {
     res.json({
       message: `${plan} plan activated successfully`,
       plan: user.plan,
+      planExpiry: user.planExpiry,
       wallet: user.wallet
     });
+
   } catch (err) {
-    console.log(err)
+    console.log(err);
     res.status(500).json({ error: err.message });
   }
 };
+
