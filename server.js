@@ -17,7 +17,7 @@ import paymentRoutes from './routes/payment.js';
 import socialLinksRoutes from './routes/socialLinks.js';
 
 import cron from 'node-cron';
-import { User } from "../backend/models/User.js";
+import { User } from "./models/User.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '.env') });
